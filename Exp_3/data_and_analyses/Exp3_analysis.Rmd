@@ -1,0 +1,476 @@
+---
+title: "Analysis"
+output:  
+  html_document:
+    number_sections: true
+    toc: true  
+    collapsed: false
+    toc_float: true
+    smooth_scroll: false
+    toc_depth: 3
+---
+
+```{r, message = FALSE, echo = FALSE, warning=FALSE}
+# packages
+library(reshape2)
+library(ggplot2)
+library(plyr)
+library(ez)
+library(gridExtra)
+library(cowplot)
+library(psych)
+```
+
+
+# Data preparation 
+
+```{r}
+tdata <- read.delim("03_tdata.txt",header=FALSE)
+sdata <- read.delim("03_sdata.txt",header=FALSE)
+lookup <- read.delim("03_lookup.txt",header=TRUE)
+```
+
+```{r}
+# reshape data -----------------------------------------------------------
+
+names(tdata)<-c("sID","change","disp","side","variable","value")
+names(sdata)<-c("sID","sex","age","duration","cond","dispcode")
+tdata <- tdata[with(tdata, order(sID)),]
+sdata <- sdata[with(sdata, order(sID)),]
+tdata$sID <- as.factor(tdata$sID)
+tdata$change <- as.factor(tdata$change)
+tdata$disp <- as.factor(tdata$disp)
+tdata$variable <- as.factor(tdata$variable)
+tdata$value <- tdata$value-1
+tdata$cause <- rep(c(rep("",2),rep(c("none","smallLight","largeLight","smallHeavy","largeHeavy"),each=4)),160)
+tdata$cause <- as.factor(tdata$cause)
+
+tdata.wide <- dcast(tdata,sID+change+disp+side~cause+variable)
+names(tdata.wide)[c(5,6)] <- c("cause_largeHeavy","cause_smallLight")
+tdata.wide.cause <- tdata.wide[,1:6]
+
+# evaluate whether the small/light object lead to the left ("smL") or the right ("smR") balloon
+
+for (i in 1:dim(tdata.wide.cause)[1]){
+  if((tdata.wide.cause$disp[i]=="size"&tdata.wide.cause$side[i]=="left")|(tdata.wide.cause$disp[i]=="weight"&tdata.wide.cause$side[i]=="right")) tdata.wide.cause$obs[i]<-"smL"
+  else tdata.wide.cause$obs[i]<-"smR"
+}
+
+# evaluate whether both causal questions were answered correctly (exclusion criterion)
+
+for (i in 1:dim(tdata.wide.cause)[1]){
+  if((tdata.wide.cause$obs[i]=="smL"&tdata.wide.cause$cause_largeHeavy[i]==3&tdata.wide.cause$cause_smallLight[i]==0)|(tdata.wide.cause$obs[i]=="smR"&tdata.wide.cause$cause_largeHeavy[i]==0&tdata.wide.cause$cause_smallLight[i]==3)) tdata.wide.cause$causeCorr[i]<-1
+  else tdata.wide.cause$causeCorr[i]<-0
+}
+
+# calculate delta-P for each cause-effect combination
+
+prob.data <- tdata[substr(tdata$variable,1,4)=="prob",]
+prob.data$variable<-as.vector(prob.data$variable)
+prob.data$value<-prob.data$value/10
+
+for (i in 1:dim(prob.data)[1]){
+  prob.data$variable[i]<-substr(prob.data$variable[i],6,nchar(prob.data$variable[i]))
+}
+
+prob.data.wide <- dcast(prob.data,sID+change+disp+side~cause+variable)
+
+for (i in 1:dim(prob.data.wide)[1]){
+  prob.data.wide$delta_smallLight_redLeft[i]<-prob.data.wide$smallLight_redLeft[i]-prob.data.wide$none_redLeft[i]
+  prob.data.wide$delta_smallLight_blueLeft[i]<-prob.data.wide$smallLight_blueLeft[i]-prob.data.wide$none_blueLeft[i]
+  prob.data.wide$delta_smallLight_redRight[i]<-prob.data.wide$smallLight_redRight[i]-prob.data.wide$none_redRight[i]
+  prob.data.wide$delta_smallLight_blueRight[i]<-prob.data.wide$smallLight_blueRight[i]-prob.data.wide$none_blueRight[i]
+  prob.data.wide$delta_smallHeavy_redLeft[i]<-prob.data.wide$smallHeavy_redLeft[i]-prob.data.wide$none_redLeft[i]
+  prob.data.wide$delta_smallHeavy_blueLeft[i]<-prob.data.wide$smallHeavy_blueLeft[i]-prob.data.wide$none_blueLeft[i]
+  prob.data.wide$delta_smallHeavy_redRight[i]<-prob.data.wide$smallHeavy_redRight[i]-prob.data.wide$none_redRight[i]
+  prob.data.wide$delta_smallHeavy_blueRight[i]<-prob.data.wide$smallHeavy_blueRight[i]-prob.data.wide$none_blueRight[i]
+  prob.data.wide$delta_largeLight_redLeft[i]<-prob.data.wide$largeLight_redLeft[i]-prob.data.wide$none_redLeft[i]
+  prob.data.wide$delta_largeLight_blueLeft[i]<-prob.data.wide$largeLight_blueLeft[i]-prob.data.wide$none_blueLeft[i]
+  prob.data.wide$delta_largeLight_redRight[i]<-prob.data.wide$largeLight_redRight[i]-prob.data.wide$none_redRight[i]
+  prob.data.wide$delta_largeLight_blueRight[i]<-prob.data.wide$largeLight_blueRight[i]-prob.data.wide$none_blueRight[i]
+  prob.data.wide$delta_largeHeavy_redLeft[i]<-prob.data.wide$largeHeavy_redLeft[i]-prob.data.wide$none_redLeft[i]
+  prob.data.wide$delta_largeHeavy_blueLeft[i]<-prob.data.wide$largeHeavy_blueLeft[i]-prob.data.wide$none_blueLeft[i]
+  prob.data.wide$delta_largeHeavy_redRight[i]<-prob.data.wide$largeHeavy_redRight[i]-prob.data.wide$none_redRight[i]
+  prob.data.wide$delta_largeHeavy_blueRight[i]<-prob.data.wide$largeHeavy_blueRight[i]-prob.data.wide$none_blueRight[i]
+}
+
+delta.data <- melt(prob.data.wide[,c(1:4,25:40)],id = c("sID","change","disp","side"), measured = names(prob.data.wide)[25:40])
+delta.data$variable <- as.vector(delta.data$variable)
+
+# evaluate which balloon corresponds to which effect using lookup table
+
+for (i in 1:dim(delta.data)[1]){
+  delta.data$cause[i]<-substr(delta.data$variable[i],7,16)
+  delta.data$balloon[i]<-substr(delta.data$variable[i],18,nchar(delta.data$variable[i]))
+  delta.data$ind[i]<-paste(delta.data$change[i],delta.data$disp[i],delta.data$side[i],delta.data$cause[i],delta.data$balloon[i],sep="_")
+}
+
+delta.data <- join(delta.data,lookup,by="ind")
+
+for (i in 1:dim(delta.data)[1]){
+  delta.data$effect[i]<-paste(delta.data$sidePred[i],delta.data$colorPred[i],sep="_")
+}
+
+# evaluate whether cause-objects were known or novel
+
+for (i in 1:dim(delta.data)[1]){
+  if(delta.data$cause[i]=="smallLight"|delta.data$cause[i]=="largeHeavy") delta.data$object[i] <- "Known"
+  else delta.data$object[i] <- "Novel"
+}
+
+# add information about whether participant answered both cause questions correctly
+
+delta.data <- join(delta.data,subset(tdata.wide.cause,select=c("sID","causeCorr")),by="sID")
+
+# convert delta data to wide format, coding for intended response
+
+delta.data.wide <- dcast(subset(delta.data,select=c(sID,change,disp,object,effect,value)),sID+change+disp~object+effect,fun.aggregate=mean)
+delta.data.wide <- join(delta.data.wide,dcast(subset(delta.data,subset=intAns==1,select=c(sID,change,disp,object,value)),sID+change+disp~object,fun.aggregate=mean)[,c(1,4,5)],by="sID")
+names(delta.data.wide)[12:13] <- c("known_corr","novel_corr")
+delta.data.wide <- join(delta.data.wide,dcast(subset(delta.data,subset=intAns!=1,select=c(sID,change,disp,object,value)),sID+change+disp~object,fun.aggregate=mean)[,c(1,4,5)],by="sID")
+names(delta.data.wide)[14:15] <- c("known_incorr","novel_incorr")
+
+# calculate specificity of delta p increase for the correct effect, separately for known and novel objects
+
+delta.data.wide$specif_known <- delta.data.wide$known_corr-delta.data.wide$known_incorr
+delta.data.wide$specif_novel <- delta.data.wide$novel_corr-delta.data.wide$novel_incorr
+delta.data.wide <- join(delta.data.wide,subset(tdata.wide.cause,select=c("sID","causeCorr")),by="sID")
+
+```
+
+# Graphs 
+
+```{r}
+# plot delta-P histograms --------------------------------------------------------
+
+# known device, known objects (A)
+
+df.delta.noChange.known <- subset(delta.data,subset=(causeCorr==1&change=="noChange"&object=="Known"))
+df.delta.noChange.known <- ddply(df.delta.noChange.known[,c(3,6,13)],.(disp,effect),function(df)c(mean(df$value),sd(df$value),length(df$value)))
+names(df.delta.noChange.known)[3:5] <- c("mean","sd","n")
+df.delta.noChange.known$effect <- as.factor(df.delta.noChange.known$effect)
+df.delta.noChange.known$effect <- factor(df.delta.noChange.known$effect,levels=levels(df.delta.noChange.known$effect)[c(2,1,3,4)])
+df.delta.noChange.known$MOE.95 <- (df.delta.noChange.known$sd/sqrt(df.delta.noChange.known$n))*qnorm(.975,0,1)
+df.delta.noChange.known$UB.95 <- df.delta.noChange.known$mean+df.delta.noChange.known$MOE.95
+df.delta.noChange.known$LB.95 <- df.delta.noChange.known$mean-df.delta.noChange.known$MOE.95
+
+bar.delta.noChange.known <- ggplot(df.delta.noChange.known,aes(disp,mean,fill=effect))
+bar.delta.noChange.known <- bar.delta.noChange.known+ 
+  coord_cartesian(ylim=c(-.1,1))+ 
+  scale_y_continuous(limits=c(-.1,1),breaks=seq(-.1,1,.1))+
+  scale_x_discrete(labels=c("Size","Weight"))+
+  geom_bar(stat="identity",position="dodge",colour="black")+
+  geom_errorbar(mapping=aes(ymin=LB.95,ymax=UB.95),stat="identity",position=position_dodge(width=.9),width=.2)+
+  geom_text(aes(y=-.07,label=n/2),colour="black",position=position_dodge(width=.9),size=4)+
+  ggtitle("Known Device, Known Objects")+
+  theme(plot.title=element_text(face="bold",size=12,hjust=.5),
+        axis.title.x=element_text(face="bold",size=12),
+        axis.title.y=element_text(face="bold",size=12),
+        axis.text.x=element_text(size=12), 
+        axis.text.y=element_text(size=12),
+        legend.text=element_text(size=13),
+        legend.title=element_text(face="bold",size=14),
+        strip.text.x=element_text(size=12),
+        strip.background=element_rect(colour="black",fill="light grey"),
+        legend.position="bottom",
+        # legend.title=element_blank(), 
+        panel.grid.major=element_blank(), 
+        panel.grid.minor=element_blank(), 
+        panel.background=element_blank(), 
+        axis.line=element_line(colour="black"), 
+        axis.text=element_text(colour="black"), 
+        axis.ticks=element_line(colour="black")) + 
+  labs(x="Capacity",y="Delta P") +
+  guides(fill=guide_legend(direction="vertical",title.hjust=.5,ncol=2,byrow=TRUE))+
+  scale_fill_manual(values=c("#000000","#555555","#999999","#FFFFFF"),name="Predicted Effect",labels=c("same side/same color","same side/other color","other side/other color","other side/same color"))
+ggsave("known_dev_known_obj.svg",width=5,height=7)
+ggsave("known_dev_known_obj.pdf",width=5,height=7)
+bar.delta.noChange.known
+
+# known device, novel objects (B)
+
+df.delta.noChange.novel <- subset(delta.data,subset=(causeCorr==1&change=="noChange"&object=="Novel"))
+df.delta.noChange.novel <- ddply(df.delta.noChange.novel[,c(3,6,13)],.(disp,effect),function(df)c(mean(df$value),sd(df$value),length(df$value)))
+names(df.delta.noChange.novel)[3:5] <- c("mean","sd","n")
+df.delta.noChange.novel$effect <- as.factor(df.delta.noChange.novel$effect)
+df.delta.noChange.novel$effect <- factor(df.delta.noChange.novel$effect,levels=levels(df.delta.noChange.novel$effect)[c(2,1,3,4)])
+df.delta.noChange.novel$MOE.95 <- (df.delta.noChange.novel$sd/sqrt(df.delta.noChange.novel$n))*qnorm(.975,0,1)
+df.delta.noChange.novel$UB.95 <- df.delta.noChange.novel$mean+df.delta.noChange.novel$MOE.95
+df.delta.noChange.novel$LB.95 <- df.delta.noChange.novel$mean-df.delta.noChange.novel$MOE.95
+
+bar.delta.noChange.novel <- ggplot(df.delta.noChange.novel,aes(disp,mean,fill=effect))
+bar.delta.noChange.novel <- bar.delta.noChange.novel+ 
+  coord_cartesian(ylim=c(-.1,1))+ 
+  scale_y_continuous(limits=c(-.1,1),breaks=seq(-.1,1,.1))+
+  scale_x_discrete(labels=c("Size","Weight"))+
+  geom_bar(stat="identity",position="dodge",colour="black")+
+  geom_errorbar(mapping=aes(ymin=LB.95,ymax=UB.95),stat="identity",position=position_dodge(width=.9),width=.2)+
+  geom_text(aes(y=-.07,label=n/2),colour="black",position=position_dodge(width=.9),size=4)+
+  ggtitle("Known Device, Novel Objects")+
+  theme(plot.title=element_text(face="bold",size=12,hjust=.5),
+        axis.title.x=element_text(face="bold",size=12),
+        axis.title.y=element_text(face="bold",size=12),
+        axis.text.x=element_text(size=12), 
+        axis.text.y=element_text(size=12),
+        legend.text=element_text(size=13),
+        legend.title=element_text(face="bold",size=14),
+        strip.text.x=element_text(size=12),
+        strip.background=element_rect(colour="black",fill="light grey"),
+        legend.position="bottom",
+        # legend.title=element_blank(), 
+        panel.grid.major=element_blank(), 
+        panel.grid.minor=element_blank(), 
+        panel.background=element_blank(), 
+        axis.line=element_line(colour="black"), 
+        axis.text=element_text(colour="black"), 
+        axis.ticks=element_line(colour="black")) + 
+  labs(x="Capacity",y="Delta P") +
+  guides(fill=guide_legend(direction="vertical",title.hjust=.5,ncol=2,byrow=TRUE))+
+  scale_fill_manual(values=c("#000000","#555555","#999999","#FFFFFF"),name="Predicted Effect",labels=c("size side/same color","size side/other color","weight side/other color","weight side/same color"))
+#ggsave("known_dev_novel_obj.svg",width=5,height=7)
+ggsave("known_dev_novel_obj.pdf",width=5,height=7)
+bar.delta.noChange.novel
+
+# novel device, known objects (C)
+
+df.delta.change.known <- subset(delta.data,subset=(causeCorr==1&change=="change"&object=="Known"))
+df.delta.change.known <- ddply(df.delta.change.known[,c(3,6,13)],.(disp,effect),function(df)c(mean(df$value),sd(df$value),length(df$value)))
+names(df.delta.change.known)[3:5] <- c("mean","sd","n")
+df.delta.change.known$effect <- as.factor(df.delta.change.known$effect)
+df.delta.change.known$effect <- factor(df.delta.change.known$effect,levels=levels(df.delta.change.known$effect)[c(2,1,3,4)])
+df.delta.change.known$MOE.95 <- (df.delta.change.known$sd/sqrt(df.delta.change.known$n))*qnorm(.975,0,1)
+df.delta.change.known$UB.95 <- df.delta.change.known$mean+df.delta.change.known$MOE.95
+df.delta.change.known$LB.95 <- df.delta.change.known$mean-df.delta.change.known$MOE.95
+
+bar.delta.change.known <- ggplot(df.delta.change.known,aes(disp,mean,fill=effect))
+bar.delta.change.known <- bar.delta.change.known+ 
+  coord_cartesian(ylim=c(-.1,1))+ 
+  scale_y_continuous(limits=c(-.1,1),breaks=seq(-.1,1,.1))+
+  scale_x_discrete(labels=c("Size","Weight"))+
+  geom_bar(stat="identity",position="dodge",colour="black")+
+  geom_errorbar(mapping=aes(ymin=LB.95,ymax=UB.95),stat="identity",position=position_dodge(width=.9),width=.2)+
+  geom_text(aes(y=-.07,label=n/2),colour="black",position=position_dodge(width=.9),size=4)+
+  ggtitle("Novel Device, Known Objects")+
+  theme(plot.title=element_text(face="bold",size=12,hjust=.5),
+        axis.title.x=element_text(face="bold",size=12),
+        axis.title.y=element_text(face="bold",size=12),
+        axis.text.x=element_text(size=12), 
+        axis.text.y=element_text(size=12),
+        legend.text=element_text(size=13),
+        legend.title=element_text(face="bold",size=14),
+        strip.text.x=element_text(size=12),
+        strip.background=element_rect(colour="black",fill="light grey"),
+        legend.position="bottom",
+        # legend.title=element_blank(), 
+        panel.grid.major=element_blank(), 
+        panel.grid.minor=element_blank(), 
+        panel.background=element_blank(), 
+        axis.line=element_line(colour="black"), 
+        axis.text=element_text(colour="black"), 
+        axis.ticks=element_line(colour="black")) +  
+  labs(x="Capacity",y="Delta P") +
+  guides(fill=guide_legend(direction="vertical",title.hjust=.5,ncol=2,byrow=TRUE))+
+  scale_fill_manual(values=c("#000000","#555555","#999999","#FFFFFF"),name="Predicted Effect",labels=c("same side/same color","same side/other color","other side/other color","other side/same color"))
+#ggsave("novel_dev_known_obj.svg",width=5,height=7)
+ggsave("novel_dev_known_obj.pdf",width=5,height=7)
+bar.delta.change.known
+
+# novel device, novel objects (D)
+
+df.delta.change.novel <- subset(delta.data,subset=(causeCorr==1&change=="change"&object=="Novel"))
+df.delta.change.novel <- ddply(df.delta.change.novel[,c(3,6,13)],.(disp,effect),function(df)c(mean(df$value),sd(df$value),length(df$value)))
+names(df.delta.change.novel)[3:5] <- c("mean","sd","n")
+df.delta.change.novel$effect <- as.factor(df.delta.change.novel$effect)
+df.delta.change.novel$effect <- factor(df.delta.change.novel$effect,levels=levels(df.delta.change.novel$effect)[c(2,1,3,4)])
+df.delta.change.novel$MOE.95 <- (df.delta.change.novel$sd/sqrt(df.delta.change.novel$n))*qnorm(.975,0,1)
+df.delta.change.novel$UB.95 <- df.delta.change.novel$mean+df.delta.change.novel$MOE.95
+df.delta.change.novel$LB.95 <- df.delta.change.novel$mean-df.delta.change.novel$MOE.95
+
+bar.delta.change.novel <- ggplot(df.delta.change.novel,aes(disp,mean,fill=effect))
+bar.delta.change.novel <- bar.delta.change.novel+ 
+  coord_cartesian(ylim=c(-.1,1))+ 
+  scale_y_continuous(limits=c(-.1,1),breaks=seq(-.1,1,.1))+
+  scale_x_discrete(labels=c("Size","Weight"))+
+  geom_bar(stat="identity",position="dodge",colour="black")+
+  geom_errorbar(mapping=aes(ymin=LB.95,ymax=UB.95),stat="identity",position=position_dodge(width=.9),width=.2)+
+  geom_text(aes(y=-.07,label=n/2),colour="black",position=position_dodge(width=.9),size=4)+
+  ggtitle("Novel Device, Novel Objects")+
+  theme(plot.title=element_text(face="bold",size=12,hjust=.5),
+        axis.title.x=element_text(face="bold",size=12),
+        axis.title.y=element_text(face="bold",size=12),
+        axis.text.x=element_text(size=12), 
+        axis.text.y=element_text(size=12),
+        legend.text=element_text(size=13),
+        legend.title=element_text(face="bold",size=14),
+        strip.text.x=element_text(size=12),
+        strip.background=element_rect(colour="black",fill="light grey"),
+        legend.position="bottom",
+        # legend.title=element_blank(), 
+        panel.grid.major=element_blank(), 
+        panel.grid.minor=element_blank(), 
+        panel.background=element_blank(), 
+        axis.line=element_line(colour="black"), 
+        axis.text=element_text(colour="black"), 
+        axis.ticks=element_line(colour="black")) + 
+  labs(x="Capacity",y="Delta P") +
+  guides(fill=guide_legend(direction="vertical",title.hjust=.5,ncol=2,byrow=TRUE))+
+  scale_fill_manual(values=c("#000000","#555555","#999999","#FFFFFF"),name="Predicted Effect",labels=c("size side/same color","size side/other color","weight side/other color","weight side/same color"))
+#ggsave("novel_dev_novel_obj.svg",width=5,height=7)
+ggsave("novel_dev_novel_obj.pdf",width=5,height=7)
+bar.delta.change.novel
+
+```
+
+
+```{r}
+
+# plot specificity of delta-P increase ------------------------------------
+
+df.specifDelta <- melt(subset(delta.data.wide,subset=causeCorr==1,select=c("sID","change","disp","specif_known","specif_novel")),id=c("sID","change","disp"),measured=c("specif_known","specif_unknown"))
+# df.specifDelta <- melt(subset(delta.data.wide,select=c("sID","change","disp","specif_known","specif_novel")),id=c("sID","change","disp"),measured=c("specif_known","specif_unknown"))
+
+df.specifDelta$change <- factor(df.specifDelta$change,levels=levels(df.specifDelta$change)[c(2,1)])
+df.specifDelta$change <- revalue(df.specifDelta$change, c("noChange"="Known Device","change"="Novel Device"))
+
+df.specifDelta <- ddply(df.specifDelta[,c(2:5)],.(change,disp,variable),function(df)c(mean(df$value),sd(df$value),length(df$value)))
+names(df.specifDelta)[4:6] <- c("mean","sd","n")
+df.specifDelta$MOE.95 <- (df.specifDelta$sd/sqrt(df.specifDelta$n))*qnorm(.975,0,1)
+df.specifDelta$UB.95 <- df.specifDelta$mean+df.specifDelta$MOE.95
+df.specifDelta$LB.95 <- df.specifDelta$mean-df.specifDelta$MOE.95
+
+bar.specifDelta <- ggplot(df.specifDelta,aes(variable,mean,fill=disp))
+bar.specifDelta + 
+  coord_cartesian(ylim=c(0,1))+ 
+  scale_y_continuous(limits=c(0,1),breaks=seq(0,1,.1))+
+  scale_x_discrete(labels=c("Known Object","Novel Object"))+
+  geom_bar(stat="identity",position="dodge",colour="black")+
+  geom_errorbar(mapping=aes(ymin=LB.95,ymax=UB.95),stat="identity",position=position_dodge(width=.9),width=.2)+
+  geom_text(aes(y=.1,label=n),colour="black",position=position_dodge(width=.9),size=5)+
+  facet_wrap(~change)+
+  # ggtitle("Known Objects, Known Machine")+
+  theme(plot.title=element_text(face="bold",size=12),
+        axis.title.x=element_text(face="bold",size=12),
+        axis.title.y=element_text(face="bold",size=12),
+        axis.text.x=element_text(size=12), 
+        axis.text.y=element_text(size=12),
+        legend.text=element_text(size=12),
+        legend.title=element_text(face="bold",size=12),
+        strip.text.x=element_text(face="bold",size=12),
+        strip.background=element_rect(colour="black",fill="light grey"),
+        legend.position=c(0.75,0.8),
+        panel.grid.major=element_blank(), 
+        panel.grid.minor=element_blank(), 
+        panel.background=element_blank(), 
+        axis.line=element_line(colour="black"), 
+        axis.text=element_text(colour="black"), 
+        axis.ticks=element_line(colour="black")) + 
+  labs(x="Test Object",y="Specificity of Delta-P Increase for Correct Effect") +
+  scale_fill_manual(values=c("#888888","#FFFFFF"),name="Capacity",labels=c("Size","Weight"))
+# ggsave("03_specifDelta.tiff",unit="cm",width=18,height=12,dpi=900)
+```
+
+
+# Statistical analysis
+
+## Descriptive stats
+```{r}
+# statistics --------------------------------------------------------------
+
+data <- melt(subset(delta.data.wide,subset=causeCorr==1,select=c("sID","change","disp","specif_known","specif_novel")),
+                       id=c("sID","change","disp"),measured=c("specif_known","specif_unknown"))
+# data <- melt(subset(delta.data.wide,select=c("sID","change","disp","specif_known","specif_novel")),
+#                        id=c("sID","change","disp"),measured=c("specif_known","specif_unknown"))
+
+data$change <- factor(data$change,levels=levels(data$change)[c(2,1)])
+data$change <- revalue(data$change, c("noChange"="Known Machine","change"="Novel Machine"))
+
+# descriptive statistics of specificity of delta-P increase by condition
+
+by(data$value,data[,c(3,4,2)],describe)
+```
+
+## t-tests of specificity of delta-P increase against 0 by condition
+```{r}
+# t-tests of specificity of delta-P increase against 0 by condition
+
+ttest.vs0<-by(data$value,data[,c(3,4,2)],t.test,mu=0)
+ttest.vs0<-data.frame(do.call(rbind,ttest.vs0))[,c(1,3)]
+ttest.vs0$statistic<-round(as.numeric(ttest.vs0$statistic),3)
+ttest.vs0$p.value<-round(as.numeric(ttest.vs0$p.value),3)
+ttest.vs0$n<-array(by(data$value,data[,c(3,4,2)],length))
+ttest.vs0$n<-as.numeric(ttest.vs0$n)
+ttest.vs0$d<-round(ttest.vs0$statistic*(sqrt(1/ttest.vs0$n)),3)
+ttest.vs0$machine<-rep(c("known","novel"),each=4)
+ttest.vs0$object<-rep(c("known","novel"),2,each=2)
+ttest.vs0$disposition<-rep(c("size","weigth"),4)
+ttest.vs0<-ttest.vs0[,c(5:7,3,1,2,4)]
+ttest.vs0
+```
+
+Convert d values to r values (for the biggest and smallest effect):
+
+The conversion was done using the formula by Borenstein et al. (2009), see: https://cran.r-project.org/web/packages/effectsize/vignettes/convert.html
+
+
+
+```{r}
+# function for the conversion
+d_to_r<-function(d){
+  r <- d/(sqrt(d^2+4))
+  return(r)
+}
+```
+
+
+```{r}
+# for largest effect
+d_to_r(2.245)
+```
+
+
+```{r}
+# now get the CI 
+library(metan) 
+corr_ci(   
+  r = 0.7466749,
+  n = 30,
+  verbose = TRUE
+)
+
+0.7466749 - 0.2269 # lower boundary 
+0.7466749 + 0.2269 # upper boundary 
+
+```
+
+```{r}
+# for largest effect
+d_to_r(0.795)
+```
+
+
+```{r}
+# now get the CI 
+library(metan) 
+corr_ci(   
+  r = 0.3693871,
+  n = 32,
+  verbose = TRUE
+)
+
+0.3693871 - 0.2962 # lower boundary 
+0.3693871 + 0.2962 # upper boundary 
+
+```
+
+
+
+## ANOVA of specificity of delta-P increase across inference tasks
+```{r}
+# ANOVA of specificity of delta-P increase across inference tasks
+
+anova.specifDelta <- ezANOVA(data, dv = .(value), wid = .(sID), between = .(change,disp), within = .(variable), type = 3, detailed = TRUE)
+anova.specifDelta
+
+```
+
+

@@ -1,0 +1,203 @@
+---
+title: "Analysis"
+output:  
+  html_document:
+    number_sections: true
+    toc: true  
+    collapsed: false
+    toc_float: true
+    smooth_scroll: false
+    toc_depth: 3
+    self_contained: yes
+---
+
+```{r setup, include=FALSE}
+# packages
+library(ez)
+library(reshape2)
+library(reshape)
+library(ggplot2)
+library(plyr)
+library(pastecs)
+library(ez)
+library(data.table)
+library(tidyverse) 
+
+library(showtext)
+library(readr)
+library(dplyr)
+
+font_add_google("Poppins", "Poppins")
+font_add_google("Roboto Mono", "Roboto Mono")
+showtext_auto()
+```
+
+
+```{r}
+tdata <- read_csv("tdata_final.csv")
+```
+
+
+# Subject demographics
+
+```{r}
+# demographics 
+
+min(tdata$age)
+max(tdata$age)
+mean(tdata$age)
+sd(tdata$age)
+
+# 1 = male, 2 = female, 3 = other
+table(tdata$gender)
+```
+
+1 = male, 2 = female, 3 = non-binary, 4 = prefer not to say
+
+Data preparation:
+
+```{r, echo = FALSE}
+# reorder factor 
+
+# to create chart, the data must be in long format and only contain the relevant dependent variables
+
+# 1. make a subset with only the relevant dvs
+
+tdata_long <- tdata
+
+
+tdata_long$office_scenario <- factor(tdata_long$office_scenario, levels = c("stapling", "watering"), 
+                               labels = c("stapling", "watering"))
+
+
+
+library(stringr)
+rating_rec <- str_split_fixed(tdata_long$outcome_rating, ":", 2)[,1]
+
+tdata_long$rating_rec <- rating_rec
+
+
+tdata_long$rating_rec <- factor(tdata_long$rating_rec, levels = c(1,2), labels = c("stapled", "watered"))
+
+#write.table(tdata_long, "data_subjects_explans.txt", append = FALSE, sep = "\t", dec = ".",
+#            row.names = FALSE, col.names = TRUE)
+
+#write.csv(tdata_long,"tdata_final_explan_analysis.csv", row.names = FALSE)
+```
+
+
+
+# Graphs
+
+
+```{r}
+# create a summary dataset that also contains the percentages
+
+plotdata_between <- tdata_long %>%
+  group_by(office_scenario, rating_rec) %>%
+  summarize(n = n()) %>% 
+  mutate(pct = n/sum(n),
+         lbl = scales::percent(pct))
+
+
+
+#plotdata_sub <- subset(plotdata_between, rating_rec == "stapled")
+
+
+```
+
+
+# Analyses
+
+get CIs for the proportions 
+
+```{r}
+plotdata_sub <- subset(plotdata_between, rating_rec == "watered")
+
+
+for (i in plotdata_sub$n){
+  print(binom.test(i, 30, p = 0.5, alternative = "two.sided"))
+}
+
+```
+```{r}
+plotdata_sub$CI_min <- c(0.0375535, 0.6927816)
+plotdata_sub$CI_max <- c(0.3072184, 0.9624465)
+```
+
+
+
+```{r, echo = FALSE}
+
+plotdata <- plotdata_between
+
+# create a theme to handle the design 
+myTheme <- theme(plot.title = element_text(face="bold", size = 16),
+        axis.title.x = element_text(face = "bold", size = 20),
+        axis.title.y = element_text(face = "bold", size = 20),
+        axis.text.x = element_text(size = 20, angle = 45, hjust = 1), 
+        axis.text.y = element_text(size = 18, angle = 0),
+        legend.text = element_text(size = 18),
+        legend.title = element_text(face = "bold", size = 18),
+        strip.text.x = element_text(size = 18),
+        #panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.background = element_blank(), 
+        axis.line.x = element_line(colour = "black"), 
+        axis.line.y = element_line(colour = "black"),
+        axis.text = element_text(colour ="black"), 
+        axis.ticks = element_line(colour ="black"))
+
+
+theme_set(theme_light(base_size = 20, base_family = "Poppins"))
+
+
+
+library(scales)
+theme_set(theme_light(base_size = 12, base_family = "Poppins"))
+
+#pvalues_x <- c(1:7)
+#pvalues <- c(rep("p < .001",6), "p = .057")
+
+
+g<- ggplot(plotdata, 
+       aes(x = office_scenario,
+           y = pct,
+           fill = rating_rec)) +
+  #facet_grid( ~ Features)+
+  geom_bar(stat = "identity",
+           position = "fill") +
+  scale_y_continuous(limits = seq(0, 2),
+                     breaks = seq(0, 1, .25),
+                     expand = c(0,0),
+                     label = percent) +
+  scale_x_discrete(labels = c("stapling", "watering"))+
+  coord_cartesian(xlim =c(1, 2), ylim = c(0, 1.1))+
+  #coord_cartesian(clip = "off")+
+  geom_text(aes(label = lbl), 
+            size = 4.5,
+            position = position_stack(vjust = 0.5)) +
+  scale_fill_brewer(palette = "Pastel1", labels = c("stapled \ndocuments", "watered \nplants")) +
+  labs(y = "Percentage", 
+       fill = "Selected \noutcome:",
+       x = "Active Configuration")+ #,
+       #title = "Subjects' categorization judgments")+
+  #annotate(geom = "hline",yintercept = 0.5, y = 0.5, color = "black", size = 1, linetype='dotted')+
+  annotate("pointrange", x = plotdata_sub$office_scenario, y = plotdata_sub$pct, 
+           ymin = plotdata_sub$CI_min, 
+           ymax = plotdata_sub$CI_max, 
+           colour = "black", size = 1, shape = 22, fill = "lightblue", fatten = 1.5)+
+  #annotate("text", x = pvalues_x, y = Inf, label = pvalues, size = 4, vjust = 1.8)+
+  theme(legend.position = "top", axis.title = element_text(size = 15), axis.text = element_text(size = 13, color = "black"),
+        legend.text = element_text(size = 13),legend.title = element_text(size = 13))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+g
+
+#ggsave("selections.pdf",width=6,height=5)
+ggsave("selections.svg",width=5,height=5)
+```
+
+
+
+
