@@ -380,7 +380,7 @@ body {
 <h2><font style="color:lightgrey;"> Stimuli </font></h1>
 -->
 <p><br></p>
-<p><img src="images/exp3_illu.PNG" /></p>
+<p><img src="images/exp4_illu.PNG" /></p>
 <p><br></p>
 <div id="experimental-materials" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> Experimental
@@ -397,8 +397,24 @@ were built in Adobe Flash)</li>
 </ul>
 <hr />
 </div>
-<div id="data-and-analyses-scripts" class="section level1" number="2">
-<h1><span class="header-section-number">2</span> Data and Analyses
+<div id="demo-clips" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Demo clips</h1>
+<div id="configuration-a" class="section level2" number="2.1">
+<h2><span class="header-section-number">2.1</span> Configuration A:</h2>
+<p><video src="Exp_3/materials/03_demo_clip_a.mp4" style="width:100.0%"
+controls=""><a
+href="Exp_3/materials/03_demo_clip_a.mp4">Video</a></video></p>
+</div>
+<div id="configuration-b" class="section level2" number="2.2">
+<h2><span class="header-section-number">2.2</span> Configuration B:</h2>
+<p><video src="Exp_3/materials/03_demo_clip_b.mp4" style="width:100.0%"
+controls=""><a
+href="Exp_3/materials/03_demo_clip_b.mp4">Video</a></video></p>
+<hr />
+</div>
+</div>
+<div id="data-and-analyses-scripts" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> Data and Analyses
 Scripts</h1>
 <ul>
 <li><a href="Exp_3/data_and_analyses.zip">Download (Zip-file)
@@ -410,52 +426,66 @@ description below)</li>
 <li>a .RMD file which is the R-Markdown analysis code</li>
 <li>a .html file with is the knitted/ compiled version of the analysis
 script</li>
-<li>a screenshot of our G-Power sensitivity analysis</li>
 </ul></li>
 </ul>
-<div id="data-set-information" class="section level2" number="2.1">
-<h2><span class="header-section-number">2.1</span> Data set
+<div id="data-set-information" class="section level2" number="3.1">
+<h2><span class="header-section-number">3.1</span> Data set
 information</h2>
-<p>The .txt file “02_lookup.txt” is a helper file used in the main
-analysis (see analysis script) to evaluate which balloon corresponds to
-which effect</p>
-<p>The .txt file “02_sdata.txt” contains subject information. The
+<p>The .txt file “03_cond_lookup.txt” is a helper file used in the main
+analysis (see analysis script) to evaluate whether intended prediction
+was made</p>
+<p>The .txt file “03_sdata.txt” contains subject information. The
 different columns are:</p>
 <ul>
-<li>“sID”,“sex”,“age”,“duration”,“cond”,“dispcode”, where
+<li>“sID”,“sex”,“age”,“duration”,“code”,“dispcode”,“size_1”,“size_2”,“weight_1”,“weight_2”,“attCheck”,“alltag”,“email”,
+where
 <ul>
 <li><strong>sID</strong>: subject identifier</li>
 <li><strong>sex</strong>: subjects’ sex (1 = male, 2 = female)</li>
 <li><strong>age</strong>: subjects’ age in years</li>
 <li><strong>duration</strong>: the time subjects took to complete the
 task (in seconds)</li>
-<li><strong>cond</strong>: numeric variable coding the different
-conditions</li>
+<li><strong>code</strong>:</li>
 <li><strong>dispcode</strong>: a disposition code indicating that the
 study ran correctly</li>
+<li><strong>size 1</strong>: control question</li>
+<li><strong>size 2</strong>: control question (shown if subjects
+answered “no” to size 1; see paper for more details)</li>
+<li><strong>weight 1</strong>: control question</li>
+<li><strong>weight 2</strong>: control question (shown if subjects
+answered “yes” to weight 1; see paper for more details)</li>
+<li><strong>attCheck</strong>: a simple transitivity query used as an
+attention check</li>
+<li><strong>alltag</strong>: additional question asking for the weight
+subjects (might) associate with the colors (orange vs. purple) of the
+balls in the experiment. low ratings mean that someone thinks that
+orange objects tend to be heavier. High ratings (up to 5) mean that
+someone thinks that purple objects tend to be heavier. ‘6’ means that
+someone thinks that there is no link between color and weight.</li>
+<li><strong>email</strong>: subjects e-mails (anonymized)</li>
 </ul></li>
 </ul>
-<p>The .txt file “02_tdata.txt” contains the main data (i.e., subjects’
+<p>The .txt file “03_tdata.txt” contains the main data (i.e., subjects’
 responses). The different columns are:</p>
 <ul>
-<li>“sID”,“change”,“disp”,“side”,“variable”,“value”, where
+<li>“sID”,“order”,“learn”,“colorHeavy”,“side”,“variable”,“value”, where
 <ul>
 <li><strong>sID</strong>: subject identifier (same as in
 01_sdata.txt)</li>
-<li><strong>change</strong>: a condition factor (coding whether change =
-yes or change = no)</li>
-<li><strong>disp</strong>: a condition factor coding the target
-disposition (size vs. weight)</li>
-<li><strong>variable</strong>: a factor coding side (left
-vs. right)</li>
+<li><strong>order</strong>: factor coding order</li>
+<li><strong>learn</strong>: factor coding the learning content</li>
+<li><strong>colorHeavy</strong>: factor coding the heavy entity</li>
+<li><strong>side</strong>: factor coding the side</li>
+<li><strong>variable</strong>: a factor the different queries subjects
+answered</li>
 <li><strong>value</strong>: subjects’ response</li>
 </ul></li>
 </ul>
 <hr />
 </div>
 </div>
-<div id="analysis-script" class="section level1" number="3">
-<h1><span class="header-section-number">3</span> Analysis Script</h1>
+<div id="analysis-script" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> Analysis Script</h1>
 <ul>
 <li><a href="Exp_3/data_and_analyses/Exp3_analysis.Rmd">R-Markdown
 code</a></li>

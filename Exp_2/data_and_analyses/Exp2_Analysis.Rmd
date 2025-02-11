@@ -17,6 +17,11 @@ library(ggplot2)
 library(plyr)
 library(ez)
 library(psych)
+
+library(showtext)
+font_add_google("Poppins", "Poppins")
+font_add_google("Roboto Mono", "Roboto Mono")
+showtext_auto()
 ```
 
 
@@ -98,6 +103,35 @@ tdata.wide$conf_mean<-rowMeans(tdata.wide[,5:6])
 ## predictions
 
 ```{r}
+# create a theme to handle the design 
+myTheme <- theme(plot.title = element_text(face="bold", size = 16),
+        axis.title.x = element_text(face = "bold", size = 20),
+        axis.title.y = element_text(face = "bold", size = 20),
+        axis.text.x = element_text(size = 20, angle = 45, hjust = 1), 
+        axis.text.y = element_text(size = 18, angle = 0),
+        legend.text = element_text(size = 18),
+        legend.title = element_text(face = "bold", size = 18),
+        strip.text.x = element_text(size = 18),
+        #panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.background = element_blank(), 
+        axis.line.x = element_line(colour = "black"), 
+        axis.line.y = element_line(colour = "black"),
+        axis.text = element_text(colour ="black"), 
+        axis.ticks = element_line(colour ="black"))
+
+
+theme_set(theme_light(base_size = 20, base_family = "Poppins"))
+
+
+
+library(scales)
+theme_set(theme_light(base_size = 12, base_family = "Poppins"))
+
+```
+
+
+```{r}
 # plot of predictions ------------------------------------------------------
 
 # data <- subset(tdata.wide,select=c("sID","cond","predDisp"))
@@ -117,31 +151,34 @@ bar.summary+
   coord_cartesian(ylim=c(0,1))+ 
   scale_y_continuous(limits=c(-.2,1.2),breaks=seq(0,1,.1))+
   scale_x_discrete(labels=levels(df.summary$condition))+
-  geom_bar(stat="identity",position="dodge",colour="black",fill="light grey")+
+  #geom_bar(stat="identity",position="dodge",colour="black", fill = c("#ffe6e6", "#ceeef9", "#defcce"))+
+  geom_bar(stat="identity",position="dodge",colour="black", fill = "lightgrey")+
   geom_errorbar(mapping=aes(ymin=LB.95,ymax=UB.95),stat="identity",position=position_dodge(width=.9),width=.2)+
   geom_hline(data=NULL, aes(yintercept=.5), linetype = "dashed", size=.5)+
-  geom_text(aes(y=.04,label=n),colour="black",size=4)+
+  geom_text(aes(y=.04,label=n),colour="black",size=8)+
+  scale_fill_brewer(palette = "Pastel1")+
+  myTheme+
   # ggtitle("Results")+
   theme(plot.title=element_text(face="bold",size=12),
-        axis.title.x=element_text(face="bold",size=12),
-        axis.title.y=element_text(face="bold",size=12),
-        axis.text.x=element_text(size=12), 
-        axis.text.y=element_text(size=12),
-        legend.text=element_text(size=12),
-        legend.title=element_text(face="bold",size=12),
-        strip.text.x=element_text(size=12),
-        strip.text.y=element_text(size=12),
-        strip.background=element_rect(colour="black",fill="light grey"),
-        legend.position=c(0.75,0.85),
+   #     axis.title.x=element_text(face="bold",size=12),
+    #    axis.title.y=element_text(face="bold",size=12),
+     #   axis.text.x=element_text(size=12), 
+      #  axis.text.y=element_text(size=12),
+        #legend.text=element_text(size=12),
+       # legend.title=element_text(face="bold",size=12),
+        #strip.text.x=element_text(size=12),
+        #strip.text.y=element_text(size=12),
+        #strip.background=element_rect(colour="black",fill="light grey"),
+        #legend.position=c(0.75,0.85),
         panel.grid.major=element_blank(), 
         panel.grid.minor=element_blank(), 
-        panel.background=element_blank(), 
-        axis.line=element_line(colour="black"), 
-        axis.text=element_text(colour="black"), 
-        axis.ticks=element_line(colour="black"))+ 
+        panel.background=element_blank())+ 
+        #axis.line=element_line(colour="black"), 
+        #axis.text=element_text(colour="black"), 
+        #axis.ticks=element_line(colour="black"))+ 
   labs(x="Condition",y="Size <--> Weight")
 
-#ggsave("01_results.tiff",height=10,width=10,units="cm",dpi=1200)
+ggsave("01_results.png",height=3,width=3)
 ```
 
 
@@ -167,29 +204,31 @@ bar.conf+
   scale_x_discrete(labels=levels(df.conf$condition))+
   geom_bar(stat="identity",position="dodge",colour="black")+
   geom_errorbar(mapping=aes(ymin=LB.95,ymax=UB.95),stat="identity",position=position_dodge(width=.9),width=.2)+
-  geom_text(aes(y=1.5,label=n),colour="black",position=position_dodge(width=.9),size=4)+
+  geom_text(aes(y=1.5,label=n),colour="black",position=position_dodge(width=.9),size=8)+
+  # ggtitle("Results")+
+  myTheme+
   # ggtitle("Results")+
   theme(plot.title=element_text(face="bold",size=12),
-        axis.title.x=element_text(face="bold",size=12),
-        axis.title.y=element_text(face="bold",size=12),
-        axis.text.x=element_text(size=12), 
-        axis.text.y=element_text(size=12),
-        legend.text=element_text(size=12),
-        legend.title=element_text(face="bold",size=12),
-        strip.text.x=element_text(size=12),
-        strip.text.y=element_text(size=12),
-        strip.background=element_rect(colour="black",fill="light grey"),
-        legend.position=c(0.25,0.85),
+   #     axis.title.x=element_text(face="bold",size=12),
+    #    axis.title.y=element_text(face="bold",size=12),
+     #   axis.text.x=element_text(size=12), 
+      #  axis.text.y=element_text(size=12),
+        #legend.text=element_text(size=12),
+       # legend.title=element_text(face="bold",size=12),
+        #strip.text.x=element_text(size=12),
+        #strip.text.y=element_text(size=12),
+        #strip.background=element_rect(colour="black",fill="light grey"),
+        #legend.position=c(0.75,0.85),
         panel.grid.major=element_blank(), 
         panel.grid.minor=element_blank(), 
-        panel.background=element_blank(), 
-        axis.line=element_line(colour="black"), 
-        axis.text=element_text(colour="black"), 
-        axis.ticks=element_line(colour="black"))+ 
+        panel.background=element_blank())+ 
+        #axis.line=element_line(colour="black"), 
+        #axis.text=element_text(colour="black"), 
+        #axis.ticks=element_line(colour="black"))+ 
   labs(x="Condition",y="Confidence")+
   scale_fill_manual(values=c("#696969","#999999"),name="Test Object",labels=c("large & light","small & heavy"))
 
-#ggsave("01_confidence.tiff",height=10,width=10,units="cm",dpi=1200)
+ggsave("01_confidence.png",height=3,width=5)
 ```
 
 # Statistical analysis 
@@ -271,13 +310,27 @@ rFromWilcox(wilc.contr$p.value,dim(data)[1])
 ```
 
 ## One-way ANOVA on confidence ratings
-```{r}
-# One-way ANOVA on confidence ratings
 
-anova.conf <- ezANOVA(data.conf, dv = .(value), wid = .(sID), between = .(cond), within = .(variable), type = 3, detailed = TRUE)
-anova.conf
+
+```{r}
+library(afex)
+
+a.conf <- aov_car(value ~ cond*variable + Error(sID/variable), data.conf, anova_table = list(es = "pes"))
+a.conf
+
 ```
 
+
+## Descriptive stats for the confidence ratings
+
+```{r}
+library(emmeans)
+library(lsmeans)
+# means
+
+means <- lsmeans(a.conf, c("cond", "variable")) 
+means
+```
 
 
 

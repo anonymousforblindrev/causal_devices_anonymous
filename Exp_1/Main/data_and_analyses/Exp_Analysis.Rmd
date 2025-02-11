@@ -180,7 +180,7 @@ g<- ggplot(plotdata,
   scale_fill_brewer(palette = "Pastel1", labels = c("stapled \ndocuments", "watered \nplants")) +
   labs(y = "Percentage", 
        fill = "Selected \noutcome:",
-       x = "Active Configuration")+ #,
+       x = "Configuration")+ #,
        #title = "Subjects' categorization judgments")+
   #annotate(geom = "hline",yintercept = 0.5, y = 0.5, color = "black", size = 1, linetype='dotted')+
   annotate("pointrange", x = plotdata_sub$office_scenario, y = plotdata_sub$pct, 
