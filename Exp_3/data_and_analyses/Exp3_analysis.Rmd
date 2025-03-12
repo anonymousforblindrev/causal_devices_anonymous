@@ -212,7 +212,7 @@ bar.prop <- ggplot(df.prop,aes(test_machine,prop,fill=test_object))
 bar.prop +
   coord_cartesian(ylim=c(0,1)) +
   scale_y_continuous(limits = c(0,1), breaks=seq(0, 1, .1)) +
-  scale_x_discrete(labels=c("Identical", "Transfer 1", "Transfer 2")) +
+  scale_x_discrete(labels=c("Identical", "Rearrangement", "Novel")) +
   geom_bar(stat="identity", position='dodge', colour = "black") + # stat="summary", fun.y = mean for average across factors
   geom_hline(data=NULL, aes(yintercept=.5), linetype = "dashed", size=1)+
   myTheme+
@@ -233,11 +233,11 @@ bar.prop +
         #axis.line = element_line(colour = "black"), 
         #axis.text = element_text(colour ="black"), 
         #axis.ticks = element_line(colour ="black")) + 
-  labs(x = "Test Device", y = "Proportion") +
+  labs(x = "Transfer Condition", y = "Proportion") +
   scale_fill_brewer(palette = "Pastel1", 
                     name="Test Object", labels=c("Heavy","Light"))
 
- ggsave("Figure_12.png",width=5,height=3)
+ ggsave("Figure_1.png",width=5,height=3)
 ```
 
 
@@ -258,7 +258,7 @@ bar.summary <- ggplot(df.summary,aes(machine,mean,fill=object))
 bar.summary+ 
   coord_cartesian(ylim=c(1,5))+ 
   scale_y_continuous(limits=c(0,5),breaks=seq(1,5,1))+
-  scale_x_discrete(labels=c("Identical","Transfer 1", "Transfer 2"))+
+  scale_x_discrete(labels=c("Identical", "Rearrangement", "Novel")) +
   geom_bar(stat="identity",position="dodge",colour="black")+
   geom_errorbar(mapping=aes(ymin=LB.95,ymax=UB.95),stat="identity",position=position_dodge(width=.9),width=.2)+
 #   ggtitle("Title")+
@@ -279,10 +279,10 @@ bar.summary+
         #axis.line=element_line(colour="black"), 
         #axis.text=element_text(colour="black"), 
         #axis.ticks=element_line(colour="black")) + 
-  labs(x="Test Device",y="Certainty") +
+  labs(x="Transfer Condition",y="Certainty") +
   scale_fill_manual(values=c("#696969","#999999"),name="Test Object",labels=c("Heavy","Light"))
 
-ggsave("Figure_13.png",width=5,height=3)
+ggsave("Figure_2.png",width=5,height=3)
 
 ```
 
